@@ -34,7 +34,7 @@ function sortObject(obj) {
 }
 
 const argv = require('minimist')(process.argv.slice(2));
-const dir = argv.d || argv.directory;
+const dir = argv.s || argv.source;
 const functionName = argv.f || argv.functionName || '__';
 const outputDirectory = argv.o || argv.output || 'translations';
 const languages = argv.l || argv.languages || 'en';
@@ -45,30 +45,22 @@ if (!dir) console.error('no directory supplied. use -d');
 
 // TODO - test if the outputDirectory exists
 
-glob(`${dir}/**/*.js`, {}, function(er, files) {
+glob(`${dir}/**/*.json`, {}, function(er, files) {
   const value = _.compose(
     _.compact,
     _.uniq,
     _.flatten,
     _.map(function(file) {
-      const text = fs.readFileSync(file, 'utf8');
-      const findTranslations = new RegExp(`(\\W${functionName}\\()(\'|\")(.*?)(\\))`, "g"); // finds all text wrapped in __('') or whatever you set it to
-      const result = text.match(findTranslations);
-      if (result) {
-        // strip away '__(' and ')'
-        return result.map(function(r) {
-          return r.slice(r.indexOf(functionName) + functionName.length + 2).slice(0, -2);
-        });
-      }
-      return null;
+      return JSON.parse(fs.readFileSync(file, 'utf8'));
     })
   )(files);
   const languagesArray = languages.split(' ');
   languagesArray.forEach(function(language) {
     const localeText = getLocaleConfig(outputDirectory, language);
-    const foundMap = _.keyBy(function(str) {
-      return willTransformise ? transformise(str) : str;
+    const foundMap = _.keyBy(function(obj) {
+      return Object.keys(obj).sort();
     })(value);
+    // finds new translations to add
     const newTranslations = _.pickBy(function(v, key) {
       const found = localeText[key];
       return !found || found.search(prefix) !== -1;

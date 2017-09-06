@@ -1,0 +1,8 @@
+{
+    "loginBtn": "Ingresar",
+    "home":{
+        "splitButton":{
+            "viewMonitoring": "Ver monitoreo"
+        }
+    }
+}
