@@ -14,12 +14,12 @@ const { transformise } = require('./index');
 // Prefixing also makes it easier to regex those mapped translations in case you need to for whatever reason.
 // TODO - add option to remove mapped, un-translated text before regenerating them
 
-function getLocaleConfig(dir, id) {
+function getLocaleConfig(dir, language) {
   try {
-    const content = fs.readFileSync(`${dir}/${id}.json`);
+    const content = fs.readFileSync(dir);
     return JSON.parse(content);
   } catch (error) {
-    console.warn(`No translation file exists for language "${id}"`);
+    console.warn(`No translation file exists for language ${language} at "${dir}"`);
   }
   return {};
 }
@@ -33,12 +33,12 @@ function sortObject(obj) {
   ), {});
 }
 
-function getObjectNestedProperties(obj,parent){
+function getObjectNestedProperties(obj, parent) {
   let props = [];
   Object.keys(obj).forEach(key => {
     if (typeof obj[key] === "object") {
       let innerKeys = getObjectNestedProperties(obj[key], key);
-      innerKeys.forEach((innerKey,index,arr)=>{
+      innerKeys.forEach((innerKey, index, arr) => {
         arr[index] = `${key}.${innerKey}`;
       });
       props = props.concat(innerKeys);
@@ -49,29 +49,29 @@ function getObjectNestedProperties(obj,parent){
   return props;
 }
 
-function buildObject(obj,key){
+function buildObject(obj, key) {
   let value;
   if (key.includes(".")) {
     let keys = key.split(".");
-    obj[keys[0]] = buildObject(obj[keys[0]] ? obj[keys[0]] : {},keys.splice(1).join("."));
-  }else{
+    obj[keys[0]] = buildObject(obj[keys[0]] ? obj[keys[0]] : {}, keys.splice(1).join("."));
+  } else {
     obj[key] = `${prefix}${key}`;
   }
   return obj;
 }
 
-function getObjectFromTranslations(tObject){
+function getObjectFromTranslations(tObject) {
   let obj = {};
   let keys = getObjectNestedProperties(tObject);
-  keys.forEach((k)=>{
-    Object.assign(obj,buildObject(obj,k));
+  keys.forEach((k) => {
+    Object.assign(obj, buildObject(obj, k));
   });
   return obj;
 }
 
-function findInnerValue(obj,key){
+function findInnerValue(obj, key) {
   let value;
-  if(key.includes(".")){
+  if (key.includes(".")) {
     let keys = key.split(".");
     if (obj[keys[0]]) {
       return findInnerValue(obj[keys[0]], keys.splice(1).join("."));
@@ -113,6 +113,31 @@ function mergeDeep(target, ...sources) {
   return mergeDeep(target, ...sources);
 }
 
+function _clearEmptyKeys(obj) {
+  Object.keys(obj).forEach(function (key) {
+    if (isObject(obj[key])) {
+      _clearEmptyKeys(obj[key]);
+      if (!Object.keys(obj[key]).length) {
+        delete obj[key]
+      }
+    }else if(!obj[key]){
+      delete obj[key]
+    }
+  });
+  return obj;
+}
+
+function _purgeOutput(outObj, inputFile) {
+  let outProps = getObjectNestedProperties(outObj);
+  outProps.forEach(function (prop) {
+    if (findInnerValue(JSON.parse(fs.readFileSync(inputFile)), prop) === undefined) {
+      eval(`outObj.${prop}=undefined`);
+    }
+  });
+  outObj = _clearEmptyKeys(outObj);
+  return outObj;
+}
+
 const argv = require('minimist')(process.argv.slice(2));
 const dir = argv.s || argv.source;
 const functionName = argv.f || argv.functionName || '__';
@@ -123,43 +148,56 @@ const willTransformise = argv.t || argv.transformise || false;
 
 if (!dir) console.error('no directory supplied. use -d');
 
-// TODO - test if the outputDirectory exists
-
-glob(`${dir}/**/*.json`, {}, function(er, files) {
+function _generateFileContent(inputFile, outputFile, language) {
+  let localeText = _purgeOutput(getLocaleConfig(outputFile, language), inputFile);
   const value = _.compose(
     _.compact,
     _.uniq,
     _.flatten,
-    _.map(function(file) {
-      const text = fs.readFileSync(file, "utf8");
-      const fileObject = JSON.parse(text);
+    _.map(function (f) {
+      const text = fs.readFileSync(f, "utf8");
+      const fileObject = JSON.parse(text) || {};
       const result = getObjectNestedProperties(fileObject);
       return result;
     })
-  )(files);
-  const languagesArray = languages.split(" ");
-  languagesArray.forEach(function(language) {
-    const localeText = getLocaleConfig(outputDirectory, language);
-    const foundMap = _.keyBy(function(str) {
-      return willTransformise ? transformise(str) : str;
-    })(value);
-    const newTranslations = _.pickBy(function(v, key) {
-      const found = key.includes(".")
-        ? findInnerValue(localeText, key)
-        : localeText[key];
-      return !found || found.startsWith(prefix);
-    })(foundMap);
-    console.log(`\n\n${language}: new translations found\n`, newTranslations);
-    let newObject = mergeDeep(
-      {},
-      localeText,
-      getObjectFromTranslations(newTranslations)
-    );
-    newObject = sortObject(newObject);
-    fs.writeFileSync(
-      `${outputDirectory}/${language}.json`,
-      JSON.stringify(newObject, null, 2),
-      "utf8"
-    );
+  )([inputFile]);
+  const foundMap = _.keyBy(function (str) {
+    return willTransformise ? transformise(str) : str;
+  })(value);
+  const newTranslations = _.pickBy(function (v, key) {
+    const found = key.includes(".")
+      ? findInnerValue(localeText, key)
+      : localeText[key];
+    return !found || found.startsWith(prefix);
+  })(foundMap);
+  console.log(`\n\n${language}: new translations found\n`, newTranslations);
+  let newObject = mergeDeep(
+    {},
+    localeText,
+    getObjectFromTranslations(newTranslations)
+  );
+  return sortObject(newObject);
+}
+
+function _writeObjectToJson(obj, filePath) {
+  fs.writeFileSync(filePath,
+    JSON.stringify(obj, null, 2),
+    "utf8");
+}
+
+languages.split(" ").forEach(language => {
+  glob(`${dir}/**/*.json`, {}, (er, files) => {
+    files.forEach(file => {
+      let relativePath = file.substring(dir.length + 1);
+      let filePath = `${outputDirectory}/${language}/${relativePath}`;
+      if (!filePath.startsWith(dir)) {
+        let fileContent = _generateFileContent(file, filePath, language);
+        let _path = filePath.substring(0, filePath.lastIndexOf("/"));
+        if (!fs.existsSync(_path)) {
+          fs.mkdirSync(_path);
+        }
+        _writeObjectToJson(fileContent, filePath);
+      }
+    });
   });
 });

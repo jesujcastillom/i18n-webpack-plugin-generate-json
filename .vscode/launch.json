@@ -11,11 +11,11 @@
             "program": "${workspaceRoot}/i18n-generate.js",
             "args": [
                 "-s",
-                "src/i18n/default",
+                "src/i18n/es",
                 "-o",
                 "src/i18n",
                 "-l",
-                "en es jp"
+                "en es jp pt"
             ]
         }
     ]
