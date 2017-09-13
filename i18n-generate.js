@@ -185,6 +185,16 @@ function _writeObjectToJson(obj, filePath) {
     "utf8");
 }
 
+function _createFolderPath(_path){
+  if(!fs.existsSync(_path)){
+    let parentPath = _path.substring(0,_path.lastIndexOf("/"));
+    if(!fs.existsSync(parentPath)){
+      _createFolderPath(parentPath);
+    }
+  }
+  fs.mkdirSync(_path);
+}
+
 languages.split(" ").forEach(language => {
   glob(`${dir}/**/*.json`, {}, (er, files) => {
     files.forEach(file => {
@@ -194,7 +204,7 @@ languages.split(" ").forEach(language => {
         let fileContent = _generateFileContent(file, filePath, language);
         let _path = filePath.substring(0, filePath.lastIndexOf("/"));
         if (!fs.existsSync(_path)) {
-          fs.mkdirSync(_path);
+          _createFolderPath(_path);
         }
         _writeObjectToJson(fileContent, filePath);
       }
