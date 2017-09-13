@@ -168,9 +168,6 @@ function _generateFileContent(inputFile, outputFile, language) {
     const found = key.includes(".")
       ? findInnerValue(localeText, key)
       : localeText[key];
-      if(typeof found !== "string"){
-        console.info("NOT STRING",found,key);
-      }
     return !found || found.startsWith(prefix);
   })(foundMap);
   console.log(`\n\n${language}: new translations found\n`, newTranslations);
