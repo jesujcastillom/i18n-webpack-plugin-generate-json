@@ -120,7 +120,7 @@ function _clearEmptyKeys(obj) {
       if (!Object.keys(obj[key]).length) {
         delete obj[key]
       }
-    }else if(!obj[key]){
+    } else if (!obj[key]) {
       delete obj[key]
     }
   });
@@ -168,6 +168,9 @@ function _generateFileContent(inputFile, outputFile, language) {
     const found = key.includes(".")
       ? findInnerValue(localeText, key)
       : localeText[key];
+    if (Number(found) === parseInt(found)) { // It's a number
+      return !found;
+    }
     return !found || found.startsWith(prefix);
   })(foundMap);
   console.log(`\n\n${language}: new translations found\n`, newTranslations);
@@ -185,10 +188,10 @@ function _writeObjectToJson(obj, filePath) {
     "utf8");
 }
 
-function _createFolderPath(_path){
-  if(!fs.existsSync(_path)){
-    let parentPath = _path.substring(0,_path.lastIndexOf("/"));
-    if(!fs.existsSync(parentPath)){
+function _createFolderPath(_path) {
+  if (!fs.existsSync(_path)) {
+    let parentPath = _path.substring(0, _path.lastIndexOf("/"));
+    if (!fs.existsSync(parentPath)) {
       _createFolderPath(parentPath);
     }
   }
