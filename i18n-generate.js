@@ -169,6 +169,7 @@ function _generateFileContent(inputFile, outputFile, language) {
       ? findInnerValue(localeText, key)
       : localeText[key];
     if (Number(found) === parseInt(found)) { // It's a number
+      console.log("It's a number");
       return !found;
     }
     return !found || found.startsWith(prefix);
