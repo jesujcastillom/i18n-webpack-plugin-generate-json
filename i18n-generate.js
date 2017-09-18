@@ -35,7 +35,7 @@ function sortObject(obj) {
 
 function getObjectNestedProperties(obj, parent) {
   let props = [];
-  Object.keys(obj).forEach(key => {
+  Object.keys(obj).sort().forEach(key => {
     if (typeof obj[key] === "object") {
       let innerKeys = getObjectNestedProperties(obj[key], key);
       innerKeys.forEach((innerKey, index, arr) => {
@@ -114,7 +114,7 @@ function mergeDeep(target, ...sources) {
 }
 
 function _clearEmptyKeys(obj) {
-  Object.keys(obj).forEach(function (key) {
+  Object.keys(obj).sort().forEach(function (key) {
     if (isObject(obj[key])) {
       _clearEmptyKeys(obj[key]);
       if (!Object.keys(obj[key]).length) {
@@ -168,11 +168,8 @@ function _generateFileContent(inputFile, outputFile, language) {
     const found = key.includes(".")
       ? findInnerValue(localeText, key)
       : localeText[key];
-    if (Number(found) === parseInt(found)) { // It's a number
-      console.log("It's a number");
-      return !found;
-    }
-    return !found || found.startsWith(prefix);
+    let prefixCheck = (typeof found === "string") ? found.startsWith(prefix) : false;
+    return !found || prefixCheck;
   })(foundMap);
   console.log(`\n\n${language}: new translations found\n`, newTranslations);
   let newObject = mergeDeep(
