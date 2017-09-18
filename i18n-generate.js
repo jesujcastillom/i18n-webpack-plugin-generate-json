@@ -120,7 +120,7 @@ function _clearEmptyKeys(obj) {
       if (!Object.keys(obj[key]).length) {
         delete obj[key]
       }
-    } else if (!obj[key]) {
+    } else if (obj[key] === undefined) {
       delete obj[key]
     }
   });
@@ -165,10 +165,15 @@ function _generateFileContent(inputFile, outputFile, language) {
     return willTransformise ? transformise(str) : str;
   })(value);
   const newTranslations = _.pickBy(function (v, key) {
-    const found = key.includes(".")
+    let found = key.includes(".")
       ? findInnerValue(localeText, key)
       : localeText[key];
-    let prefixCheck = (typeof found === "string") ? found.startsWith(prefix) : false;
+    let prefixCheck = false;
+    if (typeof found === "string") {
+      prefixCheck = found.startsWith(prefix);
+    }else{
+      found = found !== undefined;
+    }
     return !found || prefixCheck;
   })(foundMap);
   console.log(`\n\n${language}: new translations found\n`, newTranslations);
