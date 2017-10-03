@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-const fs = require('fs');
-const _ = require('lodash/fp');
-const glob = require('glob');
-const path = require('path');
-const { transformise } = require('./index');
+const fs = require("fs");
+const _ = require("lodash/fp");
+const glob = require("glob");
+const path = require("path");
+const { transformise } = require("./index");
 
 // ** README **
 // Searches through a directory to find all strings wrapped in __('') (or whatever function name you choose)
@@ -19,33 +19,41 @@ function getLocaleConfig(dir, language) {
     const content = fs.readFileSync(dir);
     return JSON.parse(content);
   } catch (error) {
-    console.warn(`No translation file exists for language ${language} at "${dir}"`);
+    console.warn(
+      `No translation file exists for language ${language} at "${dir}"`
+    );
   }
   return {};
 }
 
 // sort object keys alphabetically
 function sortObject(obj) {
-  return Object.keys(obj).sort().reduce((result, key) => (
-    Object.assign({}, result, {
-      [key]: obj[key],
-    })
-  ), {});
+  return Object.keys(obj)
+    .sort()
+    .reduce(
+      (result, key) =>
+        Object.assign({}, result, {
+          [key]: obj[key]
+        }),
+      {}
+    );
 }
 
 function getObjectNestedProperties(obj, parent) {
   let props = [];
-  Object.keys(obj).sort().forEach(key => {
-    if (typeof obj[key] === "object") {
-      let innerKeys = getObjectNestedProperties(obj[key], key);
-      innerKeys.forEach((innerKey, index, arr) => {
-        arr[index] = `${key}.${innerKey}`;
-      });
-      props = props.concat(innerKeys);
-    } else {
-      props.push(key);
-    }
-  });
+  Object.keys(obj)
+    .sort()
+    .forEach(key => {
+      if (typeof obj[key] === "object") {
+        let innerKeys = getObjectNestedProperties(obj[key], key);
+        innerKeys.forEach((innerKey, index, arr) => {
+          arr[index] = `${key}.${innerKey}`;
+        });
+        props = props.concat(innerKeys);
+      } else {
+        props.push(key);
+      }
+    });
   return props;
 }
 
@@ -53,7 +61,10 @@ function buildObject(obj, key) {
   let value;
   if (key.includes(".")) {
     let keys = key.split(".");
-    obj[keys[0]] = buildObject(obj[keys[0]] ? obj[keys[0]] : {}, keys.splice(1).join("."));
+    obj[keys[0]] = buildObject(
+      obj[keys[0]] ? obj[keys[0]] : {},
+      keys.splice(1).join(".")
+    );
   } else {
     obj[key] = `${prefix}${key}`;
   }
@@ -63,7 +74,7 @@ function buildObject(obj, key) {
 function getObjectFromTranslations(tObject) {
   let obj = {};
   let keys = getObjectNestedProperties(tObject);
-  keys.forEach((k) => {
+  keys.forEach(k => {
     Object.assign(obj, buildObject(obj, k));
   });
   return obj;
@@ -87,7 +98,7 @@ function findInnerValue(obj, key) {
  * @returns {boolean}
  */
 function isObject(item) {
-  return (item && typeof item === 'object' && !Array.isArray(item));
+  return item && typeof item === "object" && !Array.isArray(item);
 }
 
 /**
@@ -114,23 +125,27 @@ function mergeDeep(target, ...sources) {
 }
 
 function _clearEmptyKeys(obj) {
-  Object.keys(obj).sort().forEach(function (key) {
-    if (isObject(obj[key])) {
-      _clearEmptyKeys(obj[key]);
-      if (!Object.keys(obj[key]).length) {
-        delete obj[key]
+  Object.keys(obj)
+    .sort()
+    .forEach(function(key) {
+      if (isObject(obj[key])) {
+        _clearEmptyKeys(obj[key]);
+        if (!Object.keys(obj[key]).length) {
+          delete obj[key];
+        }
+      } else if (obj[key] === undefined) {
+        delete obj[key];
       }
-    } else if (obj[key] === undefined) {
-      delete obj[key]
-    }
-  });
+    });
   return obj;
 }
 
 function _purgeOutput(outObj, inputFile) {
   let outProps = getObjectNestedProperties(outObj);
-  outProps.forEach(function (prop) {
-    if (findInnerValue(JSON.parse(fs.readFileSync(inputFile)), prop) === undefined) {
+  outProps.forEach(function(prop) {
+    if (
+      findInnerValue(JSON.parse(fs.readFileSync(inputFile)), prop) === undefined
+    ) {
       eval(`outObj.${prop}=undefined`);
     }
   });
@@ -138,40 +153,45 @@ function _purgeOutput(outObj, inputFile) {
   return outObj;
 }
 
-const argv = require('minimist')(process.argv.slice(2));
+const argv = require("minimist")(process.argv.slice(2));
 const dir = argv.s || argv.source;
-const functionName = argv.f || argv.functionName || '__';
-const outputDirectory = argv.o || argv.output || 'translations';
-const languages = argv.l || argv.languages || 'en';
-const prefix = argv.p || argv.prefix || '!<';
+const input = argv.i || argv.inputFile;
+const defaultLanguage = argv.d || argv["default-language"];
+const functionName = argv.f || argv.functionName || "__";
+const outputDirectory = argv.o || argv.output || "translations";
+const languages = argv.l || argv.languages || "en";
+const prefix = argv.p || argv.prefix || "!<";
 const willTransformise = argv.t || argv.transformise || false;
 
-if (!dir) console.error('no directory supplied. use -d');
+if (!dir) console.error("no directory supplied. use -d");
 
 function _generateFileContent(inputFile, outputFile, language) {
-  let localeText = _purgeOutput(getLocaleConfig(outputFile, language), inputFile);
+  let localeText = _purgeOutput(
+    getLocaleConfig(outputFile, language),
+    inputFile
+  );
   const value = _.compose(
     _.compact,
     _.uniq,
     _.flatten,
-    _.map(function (f) {
+    _.map(function(f) {
       const text = fs.readFileSync(f, "utf8");
       const fileObject = JSON.parse(text) || {};
       const result = getObjectNestedProperties(fileObject);
       return result;
     })
   )([inputFile]);
-  const foundMap = _.keyBy(function (str) {
+  const foundMap = _.keyBy(function(str) {
     return willTransformise ? transformise(str) : str;
   })(value);
-  const newTranslations = _.pickBy(function (v, key) {
+  const newTranslations = _.pickBy(function(v, key) {
     let found = key.includes(".")
       ? findInnerValue(localeText, key)
       : localeText[key];
     let prefixCheck = false;
     if (typeof found === "string") {
       prefixCheck = found.startsWith(prefix);
-    }else{
+    } else {
       found = found !== undefined;
     }
     return !found || prefixCheck;
@@ -186,9 +206,7 @@ function _generateFileContent(inputFile, outputFile, language) {
 }
 
 function _writeObjectToJson(obj, filePath) {
-  fs.writeFileSync(filePath,
-    JSON.stringify(obj, null, 2),
-    "utf8");
+  fs.writeFileSync(filePath, JSON.stringify(obj, null, 2), "utf8");
 }
 
 function _createFolderPath(_path) {
@@ -200,6 +218,18 @@ function _createFolderPath(_path) {
   }
   fs.mkdirSync(_path);
 }
+glob(`${dir}/**/!(${input}).json`, {}, (err, files) => {
+  files.forEach(file => {
+    let relativePath = file.substring(dir.length + 1);
+    let filePath = `${outputDirectory}/${defaultLanguage}/${relativePath}`;
+    let fileContent = _generateFileContent(`${dir}/${input}.json`, filePath, defaultLanguage);
+    let _path = filePath.substring(0, filePath.lastIndexOf("/"));
+    if (!fs.existsSync(_path)) {
+      _createFolderPath(_path);
+    }
+    _writeObjectToJson(fileContent, filePath);
+  });
+});
 
 languages.split(" ").forEach(language => {
   glob(`${dir}/**/*.json`, {}, (er, files) => {
