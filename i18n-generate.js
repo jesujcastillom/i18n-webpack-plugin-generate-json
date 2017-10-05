@@ -66,7 +66,7 @@ function buildObject(obj, key) {
       keys.splice(1).join(".")
     );
   } else {
-    obj[key] = `${prefix}${key}`;
+    obj[key] = `${key}`;
   }
   return obj;
 }
@@ -190,7 +190,7 @@ function _generateFileContent(inputFile, outputFile, language) {
       : localeText[key];
     let prefixCheck = false;
     if (typeof found === "string") {
-      prefixCheck = found.startsWith(prefix);
+      prefixCheck = found.startsWith(key.includes(".") ? key.substring(key.lastIndexOf(".")) : key);
     } else {
       found = found !== undefined;
     }
