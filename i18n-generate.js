@@ -57,25 +57,25 @@ function getObjectNestedProperties(obj, parent) {
   return props;
 }
 
-function buildObject(obj, key) {
-  let value;
+function buildObject(obj, key, value) {
   if (key.includes(".")) {
     let keys = key.split(".");
     obj[keys[0]] = buildObject(
       obj[keys[0]] ? obj[keys[0]] : {},
-      keys.splice(1).join(".")
+      keys.splice(1).join("."),
+      value
     );
   } else {
-    obj[key] = `${key}`;
+    obj[key] = value;
   }
   return obj;
 }
 
-function getObjectFromTranslations(tObject) {
+function getObjectFromTranslations(tObject, inputObject) {
   let obj = {};
   let keys = getObjectNestedProperties(tObject);
   keys.forEach(k => {
-    Object.assign(obj, buildObject(obj, k));
+    Object.assign(obj, buildObject(obj, k, findInnerValue(inputObject, k)));
   });
   return obj;
 }
@@ -190,7 +190,9 @@ function _generateFileContent(inputFile, outputFile, language) {
       : localeText[key];
     let prefixCheck = false;
     if (typeof found === "string") {
-      prefixCheck = found.startsWith(key.includes(".") ? key.substring(key.lastIndexOf(".")) : key);
+      prefixCheck = found.startsWith(
+        key.includes(".") ? key.substring(key.lastIndexOf(".")) : key
+      );
     } else {
       found = found !== undefined;
     }
@@ -200,7 +202,10 @@ function _generateFileContent(inputFile, outputFile, language) {
   let newObject = mergeDeep(
     {},
     localeText,
-    getObjectFromTranslations(newTranslations)
+    getObjectFromTranslations(
+      newTranslations,
+      JSON.parse(fs.readFileSync(inputFile, "utf8"))
+    )
   );
   return sortObject(newObject);
 }
@@ -222,7 +227,11 @@ glob(`${dir}/**/!(${input}).json`, {}, (err, files) => {
   files.forEach(file => {
     let relativePath = file.substring(dir.length + 1);
     let filePath = `${outputDirectory}/${defaultLanguage}/${relativePath}`;
-    let fileContent = _generateFileContent(`${dir}/${input}.json`, filePath, defaultLanguage);
+    let fileContent = _generateFileContent(
+      `${dir}/${input}.json`,
+      filePath,
+      defaultLanguage
+    );
     let _path = filePath.substring(0, filePath.lastIndexOf("/"));
     if (!fs.existsSync(_path)) {
       _createFolderPath(_path);
