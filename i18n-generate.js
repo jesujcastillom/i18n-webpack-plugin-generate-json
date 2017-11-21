@@ -245,7 +245,7 @@ languages.split(" ").forEach(language => {
     files.forEach(file => {
       let relativePath = file.substring(dir.length + 1);
       let filePath = `${outputDirectory}/${language}/${relativePath}`;
-      if (!filePath.startsWith(dir)) {
+      if (!filePath.startsWith(dir) && !filePath.endsWith("rankmi.json")) {
         let fileContent = _generateFileContent(file, filePath, language);
         let _path = filePath.substring(0, filePath.lastIndexOf("/"));
         if (!fs.existsSync(_path)) {
