@@ -223,7 +223,7 @@ function _createFolderPath(_path) {
   }
   fs.mkdirSync(_path);
 }
-glob(`${dir}/**/!(${input}).json`, {}, (err, files) => {
+glob(`${dir}/**/!(${input}|rankmi).json`, {}, (err, files) => {
   files.forEach(file => {
     let relativePath = file.substring(dir.length + 1);
     let filePath = `${outputDirectory}/${defaultLanguage}/${relativePath}`;
