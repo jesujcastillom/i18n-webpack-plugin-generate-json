@@ -4,8 +4,7 @@
   "description": "Generate translation json files for i18n-webpack-plugin",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "bin": "node i18n-generate.js -d src/i18n/default -o src/i18n -l 'en es jp'"
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin": {
     "i18n-generate": "i18n-generate.js"
@@ -23,5 +22,8 @@
     "glob": "^7.1.2",
     "lodash": "^4.17.4",
     "minimist": "^1.2.0"
+  },
+  "dependencies": {
+    "fs-extra": "^5.0.0"
   }
 }

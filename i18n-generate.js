@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-const fs = require("fs");
-const _ = require("lodash/fp");
+const fs = require("fs-extra");
+const _ = require("lodash");
 const glob = require("glob");
 const path = require("path");
-const { transformise } = require("./index");
+const {transformise} = require("./index");
 
 // ** README **
 // Searches through a directory to find all strings wrapped in __('') (or whatever function name you choose)
@@ -15,81 +15,81 @@ const { transformise } = require("./index");
 // TODO - add option to remove mapped, un-translated text before regenerating them
 
 function getLocaleConfig(dir, language) {
-  try {
-    const content = fs.readFileSync(dir);
-    return JSON.parse(content);
-  } catch (error) {
-    console.warn(
-      `No translation file exists for language ${language} at "${dir}"`
-    );
-  }
-  return {};
+	try {
+		const content = fs.readFileSync(dir);
+		return JSON.parse(content);
+	} catch (error) {
+		console.warn(
+			`No translation file exists for language ${language} at "${dir}"`
+		);
+	}
+	return {};
 }
 
 // sort object keys alphabetically
 function sortObject(obj) {
-  return Object.keys(obj)
-    .sort()
-    .reduce(
-      (result, key) =>
-        Object.assign({}, result, {
-          [key]: obj[key]
-        }),
-      {}
-    );
+	return Object.keys(obj)
+		.sort()
+		.reduce(
+			(result, key) =>
+				Object.assign({}, result, {
+					[key]: obj[key]
+				}),
+			{}
+		);
 }
 
 function getObjectNestedProperties(obj, parent) {
-  let props = [];
-  Object.keys(obj)
-    .sort()
-    .forEach(key => {
-      if (typeof obj[key] === "object") {
-        let innerKeys = getObjectNestedProperties(obj[key], key);
-        innerKeys.forEach((innerKey, index, arr) => {
-          arr[index] = `${key}.${innerKey}`;
-        });
-        props = props.concat(innerKeys);
-      } else {
-        props.push(key);
-      }
-    });
-  return props;
+	let props = [];
+	Object.keys(obj)
+		.sort()
+		.forEach(key => {
+			if (typeof obj[key] === "object") {
+				let innerKeys = getObjectNestedProperties(obj[key], key);
+				innerKeys.forEach((innerKey, index, arr) => {
+					arr[index] = `${key}.${innerKey}`;
+				});
+				props = props.concat(innerKeys);
+			} else {
+				props.push(key);
+			}
+		});
+	return props;
 }
 
 function buildObject(obj, key, value) {
-  if (key.includes(".")) {
-    let keys = key.split(".");
-    obj[keys[0]] = buildObject(
-      obj[keys[0]] ? obj[keys[0]] : {},
-      keys.splice(1).join("."),
-      value
-    );
-  } else {
-    obj[key] = value;
-  }
-  return obj;
+	if (key.includes(".")) {
+		let keys = key.split(".");
+		obj[keys[0]] = buildObject(
+			obj[keys[0]] ? obj[keys[0]] : {},
+			keys.splice(1).join("."),
+			value
+		);
+	} else {
+		obj[key] = value;
+	}
+	return obj;
 }
 
 function getObjectFromTranslations(tObject, inputObject) {
-  let obj = {};
-  let keys = getObjectNestedProperties(tObject);
-  keys.forEach(k => {
-    Object.assign(obj, buildObject(obj, k, findInnerValue(inputObject, k)));
-  });
-  return obj;
+	let obj = {};
+	let keys = getObjectNestedProperties(tObject);
+	keys.forEach(k => {
+		Object.assign(obj, buildObject(obj, k, findInnerValue(inputObject, k)));
+	});
+	return obj;
 }
 
 function findInnerValue(obj, key) {
-  let value;
-  if (key.includes(".")) {
-    let keys = key.split(".");
-    if (obj[keys[0]]) {
-      return findInnerValue(obj[keys[0]], keys.splice(1).join("."));
-    }
-    return undefined;
-  }
-  return obj[key];
+	let value;
+	if (key.includes(".")) {
+		let keys = key.split(".");
+		if (obj[keys[0]]) {
+			return findInnerValue(obj[keys[0]], keys.splice(1).join("."));
+		}
+		return undefined;
+	}
+	return obj[key];
 }
 
 /**
@@ -98,7 +98,7 @@ function findInnerValue(obj, key) {
  * @returns {boolean}
  */
 function isObject(item) {
-  return item && typeof item === "object" && !Array.isArray(item);
+	return item && typeof item === "object" && !Array.isArray(item);
 }
 
 /**
@@ -107,50 +107,30 @@ function isObject(item) {
  * @param ...sources
  */
 function mergeDeep(target, ...sources) {
-  if (!sources.length) return target;
-  const source = sources.shift();
+	if (!sources.length) return target;
+	const source = sources.shift();
 
-  if (isObject(target) && isObject(source)) {
-    for (const key in source) {
-      if (isObject(source[key])) {
-        if (!target[key]) Object.assign(target, { [key]: {} });
-        mergeDeep(target[key], source[key]);
-      } else {
-        Object.assign(target, { [key]: source[key] });
-      }
-    }
-  }
+	if (isObject(target) && isObject(source)) {
+		for (const key in source) {
+			if (isObject(source[key])) {
+				if (!target[key]) Object.assign(target, {[key]: {}});
+				mergeDeep(target[key], source[key]);
+			} else {
+				Object.assign(target, {[key]: source[key]});
+			}
+		}
+	}
 
-  return mergeDeep(target, ...sources);
-}
-
-function _clearEmptyKeys(obj) {
-  Object.keys(obj)
-    .sort()
-    .forEach(function(key) {
-      if (isObject(obj[key])) {
-        _clearEmptyKeys(obj[key]);
-        if (!Object.keys(obj[key]).length) {
-          delete obj[key];
-        }
-      } else if (obj[key] === undefined) {
-        delete obj[key];
-      }
-    });
-  return obj;
+	return mergeDeep(target, ...sources);
 }
 
 function _purgeOutput(outObj, inputObject) {
-  let outProps = getObjectNestedProperties(outObj);
-  outProps.forEach(function(prop) {
-    if (
-      findInnerValue(inputObject, prop) === undefined
-    ) {
-      eval(`outObj.${prop}=undefined`);
-    }
-  });
-  outObj = _clearEmptyKeys(outObj);
-  return outObj;
+	let outProps = getObjectNestedProperties(outObj);
+	let inProps = getObjectNestedProperties(inputObject);
+	_.forEach(_.differenceWith(outProps, inProps, _.isEqual), key => {
+		outObj = _.omit(outObj, [key]);
+	});
+	return outObj;
 }
 
 const argv = require("minimist")(process.argv.slice(2));
@@ -166,93 +146,89 @@ const willTransformise = argv.t || argv.transformise || false;
 if (!dir) console.error("no directory supplied. use -d");
 
 function _generateFileContent(inputFile, outputFile, language) {
-  let localeText = _purgeOutput(
-    getLocaleConfig(outputFile, language),
-	  JSON.parse(fs.readFileSync(inputFile))
-  );
-  const value = _.compose(
-    _.compact,
-    _.uniq,
-    _.flatten,
-    _.map(function(f) {
-      const text = fs.readFileSync(f, "utf8");
-      const fileObject = JSON.parse(text) || {};
-      const result = getObjectNestedProperties(fileObject);
-      return result;
-    })
-  )([inputFile]);
-  const foundMap = _.keyBy(function(str) {
-    return willTransformise ? transformise(str) : str;
-  })(value);
-  const newTranslations = _.pickBy(function(v, key) {
-    let found = key.includes(".")
-      ? findInnerValue(localeText, key)
-      : localeText[key];
-    let prefixCheck = false;
-    if (typeof found === "string") {
-      prefixCheck = found.startsWith(
-        key.includes(".") ? key.substring(key.lastIndexOf(".")) : key
-      );
-    } else {
-      found = found !== undefined;
-    }
-    return !found || prefixCheck;
-  })(foundMap);
-  console.log(`${inputFile} ==> ${outputFile}: new translations found\n`, newTranslations);
-  let newObject = mergeDeep(
-    {},
-    localeText,
-    getObjectFromTranslations(
-      newTranslations,
-      JSON.parse(fs.readFileSync(inputFile, "utf8"))
-    )
-  );
-  return sortObject(newObject);
+	let localeText = _purgeOutput(
+		getLocaleConfig(outputFile, language),
+		JSON.parse(fs.readFileSync(inputFile))
+	);
+
+	const text = fs.readFileSync(inputFile, "utf8");
+	const fileObject = JSON.parse(text) || {};
+	const value = getObjectNestedProperties(fileObject);
+	// return result;
+	// const value = _.chain() _.compose(
+	// 	_.compact,
+	// 	_.uniq,
+	// 	_.flatten,
+	// 	_.map(function (f) {
+	// 	})
+	// )([inputFile]);
+	const foundMap = _.keyBy(value, (str) => {
+		return willTransformise ? transformise(str) : str;
+	});
+	const newTranslations = _.pickBy(foundMap, (v, key) => {
+		let found = key.includes(".")
+			? findInnerValue(localeText, key)
+			: localeText[key];
+		let prefixCheck = false;
+		if (typeof found === "string") {
+			prefixCheck = found.startsWith(
+				key.includes(".") ? key.substring(key.lastIndexOf(".")) : key
+			);
+		} else {
+			found = found !== undefined;
+		}
+		return !found || prefixCheck;
+	});
+	console.log(`${inputFile} ==> ${outputFile}: new translations found\n`, newTranslations);
+	let newObject = mergeDeep(
+		{},
+		localeText,
+		getObjectFromTranslations(
+			newTranslations,
+			JSON.parse(fs.readFileSync(inputFile, "utf8"))
+		)
+	);
+	return sortObject(newObject);
 }
 
-function _writeObjectToJson(obj, filePath) {
-  fs.writeFileSync(filePath, JSON.stringify(obj, null, 2), "utf8");
-}
-
-function _createFolderPath(_path) {
-  if (!fs.existsSync(_path)) {
-    let parentPath = _path.substring(0, _path.lastIndexOf("/"));
-    if (!fs.existsSync(parentPath)) {
-      _createFolderPath(parentPath);
-    }
-  }
-  fs.mkdirSync(_path);
-}
 glob(`${dir}/**/!(${input}|rankmi).json`, {}, (err, files) => {
-  files.forEach(file => {
-    let relativePath = file.substring(dir.length + 1);
-    let filePath = `${outputDirectory}/${defaultLanguage}/${relativePath}`;
-    let fileContent = _generateFileContent(
-      `${dir}/${input}.json`,
-      filePath,
-      defaultLanguage
-    );
-    let _path = filePath.substring(0, filePath.lastIndexOf("/"));
-    if (!fs.existsSync(_path)) {
-      _createFolderPath(_path);
-    }
-    _writeObjectToJson(fileContent, filePath);
-  });
+	files.forEach(file => {
+		let relativePath = file.substring(dir.length + 1);
+		let filePath = `${outputDirectory}/${defaultLanguage}/${relativePath}`;
+		let _path = filePath.substring(0, filePath.lastIndexOf(path.sep));
+		fs.ensureDir(_path, err => {
+			if (err) {
+				console.log(err);
+			} else {
+				let fileContent = _generateFileContent(`${dir}${path.sep}${input}.json`, filePath, defaultLanguage);
+				fs.writeFileSync(filePath, JSON.stringify(fileContent, null, 2), {encoding: "utf8"});
+			}
+		});
+	});
 });
 
 languages.split(" ").forEach(language => {
-  glob(`${dir}/**/*.json`, {}, (er, files) => {
-    files.forEach(file => {
-      let relativePath = file.substring(dir.length + 1);
-      let filePath = `${outputDirectory}/${language}/${relativePath}`;
-      if (!filePath.startsWith(dir) && !filePath.endsWith("rankmi.json")) {
-        let fileContent = _generateFileContent(file, filePath, language);
-        let _path = filePath.substring(0, filePath.lastIndexOf("/"));
-        if (!fs.existsSync(_path)) {
-          _createFolderPath(_path);
-        }
-        _writeObjectToJson(fileContent, filePath);
-      }
-    });
-  });
+	glob(`${dir}/**/*.json`, {}, (er, files) => {
+		files.forEach(file => {
+			let relativePath = file.substring(dir.length + 1);
+			let filePath = `${outputDirectory}/${language}/${relativePath}`;
+			if (!filePath.startsWith(dir) && !filePath.endsWith("rankmi.json")) {
+				let _path = filePath.substring(0, filePath.lastIndexOf(path.sep));
+				fs.ensureDir(_path, err => {
+					if (err) {
+						console.log(err);
+					} else {
+						let fileContent = _generateFileContent(file, filePath, language);
+						fs.writeFile(filePath, JSON.stringify(fileContent, null, 2), {encoding: "utf8"}, _err => {
+							if (_err) {
+								console.error(_err);
+							} else {
+								console.log(`WROTE ===> ${filePath}`);
+							}
+						});
+					}
+				});
+			}
+		});
+	});
 });
