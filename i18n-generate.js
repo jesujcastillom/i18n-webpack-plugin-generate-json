@@ -140,11 +140,11 @@ function _clearEmptyKeys(obj) {
   return obj;
 }
 
-function _purgeOutput(outObj, inputFile) {
+function _purgeOutput(outObj, inputObject) {
   let outProps = getObjectNestedProperties(outObj);
   outProps.forEach(function(prop) {
     if (
-      findInnerValue(JSON.parse(fs.readFileSync(inputFile)), prop) === undefined
+      findInnerValue(inputObject, prop) === undefined
     ) {
       eval(`outObj.${prop}=undefined`);
     }
@@ -168,7 +168,7 @@ if (!dir) console.error("no directory supplied. use -d");
 function _generateFileContent(inputFile, outputFile, language) {
   let localeText = _purgeOutput(
     getLocaleConfig(outputFile, language),
-    inputFile
+	  JSON.parse(fs.readFileSync(inputFile))
   );
   const value = _.compose(
     _.compact,
