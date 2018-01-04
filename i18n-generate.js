@@ -198,7 +198,7 @@ function _generateFileContent(inputFile, outputFile, language) {
     }
     return !found || prefixCheck;
   })(foundMap);
-  console.log(`\n\n${language}: new translations found\n`, newTranslations);
+  console.log(`${inputFile} ==> ${outputFile}: new translations found\n`, newTranslations);
   let newObject = mergeDeep(
     {},
     localeText,
