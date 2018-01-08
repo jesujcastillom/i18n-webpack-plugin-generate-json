@@ -124,11 +124,24 @@ function mergeDeep(target, ...sources) {
 	return mergeDeep(target, ...sources);
 }
 
+function _clearUpObject(obj, key) {
+	if (_.isEmpty(_.get(obj, key))) {
+		obj = _.omit(obj, key);
+		if (key.includes(".")) {
+			_clearUpObject(obj, key.substring(0, key.lastIndexOf(".")));
+		}
+	}
+	return obj;
+}
+
 function _purgeOutput(outObj, inputObject) {
 	let outProps = getObjectNestedProperties(outObj);
 	let inProps = getObjectNestedProperties(inputObject);
 	_.forEach(_.differenceWith(outProps, inProps, _.isEqual), key => {
 		outObj = _.omit(outObj, [key]);
+		if (_.isEmpty(_.get(outObj, key.includes(".") ? key.substring(0, key.lastIndexOf(".")) : key.length))) {
+			outObj = _clearUpObject(outObj, key.substring(0, key.lastIndexOf(".")));
+		}
 	});
 	return outObj;
 }
